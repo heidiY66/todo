@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>手机待办清单</title>
+    <title>待办清单（数据持久化）</title>
     <style>
         * {
             box-sizing: border-box;
@@ -15,7 +15,7 @@
             background: #f5f7fa;
             color: #333;
             line-height: 1.6;
-            padding: 20px 10px 80px; /* 底部留出按钮空间 */
+            padding: 20px 10px 80px;
             max-width: 500px;
             margin: 0 auto;
         }
@@ -75,9 +75,13 @@
         }
         .todo-text {
             flex: 1;
-            padding-right: 15px;
+            padding: 0 15px;
             font-size: 1.1rem;
             word-break: break-word;
+        }
+        .todo-text.completed {
+            text-decoration: line-through;
+            color: #888;
         }
         .delete-button {
             background: #e74c3c;
@@ -103,6 +107,11 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .todo-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -121,36 +130,99 @@
         const addTodoButton = document.getElementById('addTodo');
         const todoList = document.getElementById('todoList');
         
+        // 页面加载时从localStorage加载任务
+        window.addEventListener('DOMContentLoaded', loadTodos);
+
         // 添加任务功能
         addTodoButton.addEventListener('click', addTodo);
         newTodoInput.addEventListener('keypress', e => {
             if (e.key === 'Enter') addTodo();
         });
-        
+
+        // 添加新任务
         function addTodo() {
             const todoText = newTodoInput.value.trim();
             if (!todoText) return;
             
-            const li = document.createElement('li');
-            li.className = 'todo-item';
-            li.innerHTML = `
-                <span class="todo-text">${todoText}</span>
-                <button class="delete-button">删除</button>
-            `;
-            
-            // 添加删除功能
-            li.querySelector('.delete-button').addEventListener('click', () => {
-                li.style.animation = 'fadeOut 0.3s ease';
-                setTimeout(() => li.remove(), 280);
-                checkEmptyState();
-            });
-            
-            todoList.appendChild(li);
+            createTodoItem(todoText, false);
             newTodoInput.value = '';
             newTodoInput.focus();
-            checkEmptyState();
+            saveTodos();
         }
-        
+
+        // 创建任务DOM元素
+        function createTodoItem(text, completed) {
+            const li = document.createElement('li');
+            li.className = 'todo-item';
+            
+            // 创建复选框
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'todo-checkbox';
+            checkbox.checked = completed;
+            
+            // 创建任务文本
+            const textSpan = document.createElement('span');
+            textSpan.className = 'todo-text';
+            textSpan.textContent = text;
+            if (completed) textSpan.classList.add('completed');
+            
+            // 创建删除按钮
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-button';
+            deleteBtn.textContent = '删除';
+            
+            // 添加元素到列表项
+            li.appendChild(checkbox);
+            li.appendChild(textSpan);
+            li.appendChild(deleteBtn);
+            todoList.appendChild(li);
+            
+            // 添加事件监听器
+            checkbox.addEventListener('change', function() {
+                textSpan.classList.toggle('completed', this.checked);
+                saveTodos();
+            });
+            
+            deleteBtn.addEventListener('click', function() {
+                li.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => {
+                    li.remove();
+                    saveTodos();
+                    checkEmptyState();
+                }, 280);
+            });
+            
+            checkEmptyState();
+            return li;
+        }
+
+        // 保存所有任务到localStorage
+        function saveTodos() {
+            const todos = [];
+            document.querySelectorAll('.todo-item').forEach(item => {
+                const text = item.querySelector('.todo-text').textContent;
+                const completed = item.querySelector('.todo-checkbox').checked;
+                todos.push({ text, completed });
+            });
+            localStorage.setItem('todos', JSON.stringify(todos));
+        }
+
+        // 从localStorage加载任务
+        function loadTodos() {
+            const savedTodos = JSON.parse(localStorage.getItem('todos')) || [];
+            todoList.innerHTML = '';
+            
+            if (savedTodos.length === 0) {
+                checkEmptyState();
+                return;
+            }
+            
+            savedTodos.forEach(todo => {
+                createTodoItem(todo.text, todo.completed);
+            });
+        }
+
         // 检查空状态
         function checkEmptyState() {
             const emptyState = document.querySelector('.empty-state');
@@ -165,9 +237,6 @@
                 emptyState.remove();
             }
         }
-        
-        // 初始空状态检查
-        checkEmptyState();
     </script>
 </body>
-</html># todo
+</html>
